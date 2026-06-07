@@ -27,6 +27,9 @@ shell_args = []
 auto_profile = true   # inject betterm's prompt/init for known shells
 banner = true         # show the system-info banner at startup (needs auto_profile)
 
+# --- Scrollback --------------------------------------------------------------
+scrollback = 5000     # lines of history kept for mouse-wheel scrolling (0 = off)
+
 # --- Animated RGB border -----------------------------------------------------
 [border]
 enabled = true

@@ -557,7 +557,7 @@ impl Renderer {
 
         for y in 0..term.rows {
             for x in 0..term.cols {
-                let cell = term.cells[y * term.cols + x];
+                let cell = term.view_cell(x, y);
                 let cx = self.pad + x as f32 * atlas.cell_w;
                 let cy = self.title_h + y as f32 * atlas.cell_h;
 
@@ -630,7 +630,12 @@ impl Renderer {
             }
         }
 
-        if term.cursor_visible && term.cursor_x < term.cols && term.cursor_y < term.rows {
+        // Hide the cursor while viewing history (it belongs to the live screen).
+        if term.cursor_visible
+            && !term.scrolled()
+            && term.cursor_x < term.cols
+            && term.cursor_y < term.rows
+        {
             let cx = self.pad + term.cursor_x as f32 * atlas.cell_w;
             let cy = self.title_h + term.cursor_y as f32 * atlas.cell_h;
             let [r, g, b] = norm_rgb(fg_def);

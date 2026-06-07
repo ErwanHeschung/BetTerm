@@ -5,7 +5,12 @@
 //! implement a pragmatic subset of xterm: enough for PowerShell, colored
 //! prompts, line editing, and `clear`.
 
+use std::collections::VecDeque;
+
 use vte::{Params, Perform};
+
+/// Default number of scrolled-off lines kept for scrollback.
+pub const DEFAULT_SCROLLBACK: usize = 5000;
 
 /// A color as it appears in an SGR sequence. Resolved to concrete RGB at draw
 /// time so theme changes don't require re-parsing.
@@ -76,6 +81,13 @@ pub struct Term {
     scroll_bot: usize,
     // Pending wrap: cursor is "past" the last column.
     wrap_next: bool,
+
+    /// Lines that have scrolled off the top, oldest first. Each row is `cols`
+    /// wide at the time it was captured.
+    scrollback: VecDeque<Vec<Cell>>,
+    scrollback_max: usize,
+    /// Lines the viewport is scrolled back from the live bottom; 0 = following.
+    view_offset: usize,
 }
 
 impl Term {
@@ -95,6 +107,59 @@ impl Term {
             scroll_top: 0,
             scroll_bot: rows - 1,
             wrap_next: false,
+            scrollback: VecDeque::new(),
+            scrollback_max: DEFAULT_SCROLLBACK,
+            view_offset: 0,
+        }
+    }
+
+    /// Set how many scrolled-off lines to retain. Trims existing history if the
+    /// new cap is smaller.
+    pub fn set_scrollback_max(&mut self, max: usize) {
+        self.scrollback_max = max;
+        while self.scrollback.len() > self.scrollback_max {
+            self.scrollback.pop_front();
+        }
+        self.view_offset = self.view_offset.min(self.scrollback.len());
+    }
+
+    #[inline]
+    pub fn scrolled(&self) -> bool {
+        self.view_offset > 0
+    }
+
+    /// Positive scrolls toward older output, negative toward the live screen.
+    pub fn scroll_view(&mut self, delta: isize) {
+        let max = self.scrollback.len() as isize;
+        let next = (self.view_offset as isize + delta).clamp(0, max) as usize;
+        if next != self.view_offset {
+            self.view_offset = next;
+            self.dirty += 1;
+        }
+    }
+
+    pub fn scroll_to_bottom(&mut self) {
+        if self.view_offset != 0 {
+            self.view_offset = 0;
+            self.dirty += 1;
+        }
+    }
+
+    /// The cell shown at viewport position `(x, y)`, resolving the scrollback
+    /// view. When scrolled back, the upper rows come from history.
+    #[inline]
+    pub fn view_cell(&self, x: usize, y: usize) -> Cell {
+        if self.view_offset == 0 {
+            return self.cells[y * self.cols + x];
+        }
+        let sb = self.scrollback.len();
+        // Absolute line index in the [history.., live screen] timeline.
+        let abs = (sb - self.view_offset) + y;
+        if abs < sb {
+            // History rows may have a different width (captured pre-resize).
+            self.scrollback[abs].get(x).copied().unwrap_or_default()
+        } else {
+            self.cells[(abs - sb) * self.cols + x]
         }
     }
 
@@ -119,6 +184,9 @@ impl Term {
         self.scroll_top = 0;
         self.scroll_bot = rows - 1;
         self.wrap_next = false;
+        // History keeps its old width (view_cell bounds-checks); just snap back
+        // to the live screen so the new geometry isn't shown mid-scroll.
+        self.view_offset = 0;
         self.dirty += 1;
     }
 
@@ -151,6 +219,22 @@ impl Term {
     fn scroll_up(&mut self, n: usize) {
         let n = n.min(self.scroll_bot - self.scroll_top + 1);
         let (top, bot) = (self.scroll_top, self.scroll_bot);
+        // Only normal full-height scrolling (region anchored at the top) feeds
+        // scrollback; a restricted scroll region is an app drawing in place.
+        if top == 0 && self.scrollback_max > 0 {
+            for y in 0..n {
+                let start = self.idx(0, y);
+                self.scrollback
+                    .push_back(self.cells[start..start + self.cols].to_vec());
+            }
+            while self.scrollback.len() > self.scrollback_max {
+                self.scrollback.pop_front();
+            }
+            // Keep the viewport pinned to the same content while scrolled back.
+            if self.view_offset > 0 {
+                self.view_offset = (self.view_offset + n).min(self.scrollback.len());
+            }
+        }
         for y in top..=(bot - n) {
             let (dst, src) = (self.idx(0, y), self.idx(0, y + n));
             self.cells.copy_within(src..src + self.cols, dst);

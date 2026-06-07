@@ -32,6 +32,9 @@ pub struct Config {
     pub auto_profile: bool,
     /// System-info banner at startup (needs `auto_profile`).
     pub banner: bool,
+
+    /// Lines of scrollback to keep (mouse-wheel history). 0 disables it.
+    pub scrollback: usize,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -77,6 +80,7 @@ impl Default for Config {
             shell_args: Vec::new(),
             auto_profile: true,
             banner: true,
+            scrollback: crate::terminal::DEFAULT_SCROLLBACK,
         }
     }
 }

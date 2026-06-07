@@ -19,7 +19,7 @@ use std::time::Instant;
 
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalPosition};
-use winit::event::{ElementState, KeyEvent, MouseButton, WindowEvent};
+use winit::event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::keyboard::{Key, ModifiersState, NamedKey};
 use winit::window::{CursorIcon, ResizeDirection, Window, WindowId};
@@ -157,7 +157,7 @@ impl App {
                 let cend = if r == er { e % cols } else { cols - 1 };
                 let mut line = String::new();
                 for c in cstart..=cend {
-                    line.push(term.cells[r * cols + c].ch);
+                    line.push(term.view_cell(c, r).ch);
                 }
                 while line.ends_with(' ') {
                     line.pop();
@@ -257,6 +257,7 @@ impl App {
 
         if let (Some(bytes), Some(pty)) = (bytes, &mut self.pty) {
             if !bytes.is_empty() {
+                self.term.lock().unwrap().scroll_to_bottom();
                 pty.write(&bytes);
             }
         }
@@ -336,7 +337,11 @@ impl App {
         let renderer = Renderer::new(window.clone(), &self.cfg, &atlas)?;
 
         let (cols, rows) = renderer.grid_size(&atlas);
-        *self.term.lock().unwrap() = Term::new(cols as usize, rows as usize);
+        {
+            let mut term = self.term.lock().unwrap();
+            *term = Term::new(cols as usize, rows as usize);
+            term.set_scrollback_max(self.cfg.scrollback);
+        }
 
         // betterm generates the banner and writes it to a file the shell prints at
         // startup, so it lands above the prompt and scrolls away naturally (ConPTY
@@ -424,6 +429,22 @@ impl ApplicationHandler<UserEvent> for App {
                         if let Some(w) = &self.window {
                             w.set_cursor(resize_cursor(dir));
                         }
+                    }
+                }
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                // Wheel up scrolls into history; 3 lines per notch (Shift = 1).
+                let step = if self.mods.shift_key() { 1.0 } else { 3.0 };
+                let cell_h = self.atlas.as_ref().map(|a| a.cell_h).unwrap_or(16.0);
+                let lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => (y * step).round() as isize,
+                    MouseScrollDelta::PixelDelta(p) => (p.y as f32 / cell_h).round() as isize,
+                };
+                if lines != 0 {
+                    self.term.lock().unwrap().scroll_view(lines as isize);
+                    if let Some(w) = &self.window {
+                        w.request_redraw();
                     }
                 }
             }

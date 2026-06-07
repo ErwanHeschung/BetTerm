@@ -37,6 +37,8 @@ per-pixel transparency on a fully borderless window.
   touching your global `$PROFILE`.
 - **Copy / paste** with `Ctrl+C` / `Ctrl+V` and mouse selection (`Ctrl+C` copies
   the selection if there is one, otherwise sends `SIGINT`).
+- **Scrollback** — mouse-wheel through history (`Shift+wheel` for line-by-line);
+  typing snaps back to the live screen. Depth is set by `scrollback` in the config.
 - **Borderless resize** (drag any edge/corner) and **macOS-style controls**
   (close / minimize / maximize) with drag-to-move from the title bar.
 
@@ -61,6 +63,7 @@ optional. Highlights:
 | `acrylic` | Windows 11 frosted-glass backdrop (use with a low opacity) |
 | `shell`, `shell_args` | Which shell to launch and its arguments |
 | `auto_profile`, `banner` | Inject the themed prompt and show the startup banner |
+| `scrollback` | Lines of history kept for mouse-wheel scrolling (`0` disables) |
 | `[border]` | RGB border thickness, corner radius, speed, density |
 
 Diagnostics (config loaded, GPU, image decode) are written to
@@ -116,9 +119,9 @@ embedded Symbols Nerd Font supplies icons your monospace font lacks.
 
 ## Known limitations
 
-- No scrollback buffer yet (the visible screen only).
 - No ligatures / no separate bold font (bold is faux-brightened).
 - Alt-screen apps (vim, etc.) render but reflow on resize is naive.
+- Scrollback reflow on resize is naive; history keeps the width it was captured at.
 
 ## License
 
