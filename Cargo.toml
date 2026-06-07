@@ -1,0 +1,45 @@
+[package]
+name = "betterm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Windowing (borderless window so we can draw our own RGB borders)
+winit = "0.30"
+# GPU rendering
+wgpu = "29"
+pollster = "0.3"           # block on wgpu async setup
+bytemuck = { version = "1", features = ["derive"] }
+raw-window-handle = "0.6"
+
+# Terminal backend
+portable-pty = "0.8"       # ConPTY on Windows
+vte = "0.13"               # VT/ANSI escape parser
+
+# Fonts & images
+fontdue = "0.9"            # glyph rasterization
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+# Clipboard (Ctrl+C / Ctrl+V)
+arboard = "3"
+# Windows 11 acrylic/mica backdrop (frosted-glass translucency)
+window-vibrancy = "0.5"
+
+# System info for the startup banner (shell-independent)
+sysinfo = "0.39"
+winreg = "0.56"
+
+# Misc
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+[target.'cfg(windows)'.build-dependencies]
+# Embed the .exe icon (Explorer/taskbar) as a native Windows resource.
+winresource = "0.1"
+
+[profile.dev]
+opt-level = 1              # terminals are unbearable unoptimized
+
+[profile.release]
+lto = true

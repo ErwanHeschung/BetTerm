@@ -1,0 +1,36 @@
+# betterm configuration. Place next to betterm.exe or in the working directory you
+# launch it from. Every field is optional; defaults are used when omitted.
+
+# --- Font --------------------------------------------------------------------
+# Leave font_path unset to auto-probe Cascadia Code / Consolas / etc.
+# font_path = "C:\\Windows\\Fonts\\CascadiaCode.ttf"
+font_size = 18.0
+line_height = 1.25
+
+# --- Background --------------------------------------------------------------
+# background_image = "C:\\path\\to\\wallpaper.jpg"   # png/jpg; omit for solid color
+background_opacity = 0.85            # 0 = fully see-through, 1 = opaque
+background_color = [0.05, 0.05, 0.08]  # linear 0..1 rgb, fills the whole window
+acrylic = false                     # Windows 11 frosted-glass backdrop (pair with a
+                                    # low background_opacity so the blur shows through)
+
+# --- Terminal colors (0..255 rgb) --------------------------------------------
+foreground = [224, 224, 224]
+background = [18, 18, 24]
+
+# --- Shell -------------------------------------------------------------------
+shell = "powershell.exe"
+# shell_args overrides the automatic init injection below. Leave empty for the
+# themed prompt + banner. For Git Bash, just set `shell` and leave this empty:
+#   shell = "C:\\Program Files\\Git\\bin\\bash.exe"
+shell_args = []
+auto_profile = true   # inject betterm's prompt/init for known shells
+banner = true         # show the system-info banner at startup (needs auto_profile)
+
+# --- Animated RGB border -----------------------------------------------------
+[border]
+enabled = true
+width = 3.0          # thickness in pixels
+radius = 10.0        # corner rounding
+speed = 6.0          # seconds per full rainbow rotation (lower = faster)
+angle_density = 1.0  # rainbow cycles around the frame
